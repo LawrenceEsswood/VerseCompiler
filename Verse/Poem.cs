@@ -35,7 +35,7 @@ namespace Verse
 
         public override int run(Variable[] localStack, int line)
         {
-            localStack[lindex] = localStack[rindex].clone();
+            localStack[lindex].set(localStack[rindex]);
             return line + 1;
         }
 

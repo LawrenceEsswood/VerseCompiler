@@ -67,6 +67,12 @@ namespace Verse
             this.type = v.type;
         }
 
+        public void set(Variable v)
+        {
+            this.value = v.value;
+            this.type = v.type;
+        }
+
         public static Variable assumeType(String v)
         {
             String upV = v.ToUpper();
