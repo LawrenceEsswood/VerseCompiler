@@ -42,8 +42,8 @@ namespace WordTester
             Word word1 = new Word(w1);
             Word word2 = new Word(w2);
 
-            Console.WriteLine("Sound word 1" + word1.soundsLike);
-            Console.WriteLine("Sound word 2" + word2.soundsLike);
+            Console.WriteLine("Sound word 1 " + word1.soundsLike);
+            Console.WriteLine("Sound word 2 " + word2.soundsLike);
 
             Console.WriteLine("Primary Rhyme: " + word1.primaryRyhme(word2));
             Console.WriteLine("Alliterate: " + word1.alliterate(word2));
