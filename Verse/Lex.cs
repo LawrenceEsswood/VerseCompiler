@@ -11,6 +11,7 @@ namespace Verse
         ExclamationMark,
         SemiColon,
         FullStop,
+        Comma,
         Colon,
         Tild,
         Pipe,
@@ -31,6 +32,7 @@ namespace Verse
         public static Token NewLine = new Token(TT.NewLine);
         public static Token EOS = new Token(TT.EOS);
         public static Token Pipe = new Token(TT.Pipe);
+        public static Token Comma = new Token(TT.Comma);
 
         public TT tokenType;
         public String wordV;
@@ -132,7 +134,7 @@ namespace Verse
                         if (v != "") addWordToQueue(v);
                         hold.Enqueue(Token.ExclamationMark);
                         return;
-                    case ' ':
+                    case ' ':case ',':
                         if (v != "")
                         {
                             addWordToQueue(v);
