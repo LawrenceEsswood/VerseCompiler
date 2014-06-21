@@ -120,13 +120,14 @@ namespace Verse
             get
             {
                 String res = "";
+                int i = 0;
                 foreach(List<sound> ss in this.sounds)
                 {
                     foreach (sound s in ss)
                     {
                         res += s.phoneme + "_" + s.stress +" ";
                     }
-                    res += ",";
+                    if(i++ != this.sounds.Count -1) res += ",\n  ";
                 }
                 return res;
             }
