@@ -5,6 +5,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Verse", "Verse\Verse.csproj
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WordTester", "WordTester\WordTester.csproj", "{FA46B628-07D4-468A-86E1-34847C0BE34F}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8C1A585D-5B28-42D5-97E3-BF0308494E5C}"
+	ProjectSection(SolutionItems) = preProject
+		inbuiltPoems.h = inbuiltPoems.h
+		poem.c = poem.c
+		poem.h = poem.h
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86

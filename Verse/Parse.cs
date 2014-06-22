@@ -259,11 +259,11 @@ namespace Verse
 
                 foreach(KeyValuePair<String, int> pair in labels) 
                 {
-                    lines[pair.Value] = pair.Key + ": " + lines[pair.Value];
+                    lines[pair.Value] = "  " + pair.Key + ": " + lines[pair.Value];
                 }
 
                 String tmpDef = "";
-                for (int i = 0; i < tmpCount; i++) tmpDef += "var* _tmp" + i + "; ";
+                for (int i = 0; i < tmpCount; i++) tmpDef += "  var* _tmp" + i + "; ";
                 if (tmpDef != "") tmpDef += "\n";
 
                 String body = String.Join("\n", lines);
