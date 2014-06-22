@@ -110,7 +110,7 @@ namespace Verse
                 case types.type_string: return v2.asString() == v1.value.strV;
                 case types.type_float: return (v2.type == types.type_int && (float)v2.value.intV == v1.value.floatV) || (v2.value.floatV == v1.value.floatV);
                 case types.type_int: return (v2.value.intV == v1.value.intV);
-                default: throw new Exception("Not is only defined for int and bool");
+                default: throw new Exception("Variable typing exception");
             }
         }
 

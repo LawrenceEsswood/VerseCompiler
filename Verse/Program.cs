@@ -14,18 +14,28 @@ namespace Verse
             Word.buildRyhmeDict(new StreamReader(new MemoryStream(Verse.Properties.Resources.c06d)));
 
             String programPath = args.Length == 0 ? "C:\\Users\\Lawrence Esswood\\Documents\\Visual Studio 2010\\Projects\\Verse\\Verse\\test.anth" : args[0];
+
             StreamReader sr = new StreamReader(programPath);
             Lex lexer = new Lex((StreamReader)sr);
-
             Parse parser = new Parse(lexer);
+
+            printC(parser);
+            Console.ReadKey();
+        }
+
+        static void interpret(Parse parser)
+        {
+            
             Anthology anth = parser.compile();
 
             Variable v = anth.run(null);
             if (v != null) Console.WriteLine(v.asString());
-            Console.ReadKey();
         }
 
-
+        static void printC(Parse parser)
+        {
+            Console.Write(parser.compileC());
+        }
 
     }
 }

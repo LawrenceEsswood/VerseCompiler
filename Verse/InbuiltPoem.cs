@@ -20,6 +20,7 @@ namespace Verse
         public static InbuiltPoem xorPoem = new XorPoem();
         public static InbuiltPoem notPoem = new NotPoem();
         public static InbuiltPoem equalPoem = new EqualPoem();
+        public static List<InbuiltPoem> allInbuilt = new List<InbuiltPoem> { sayPoem, readPoem, addPoem, subPoem, multPoem, divPoem, modPoem, andPoem, orPoem, xorPoem, notPoem, equalPoem };
     }
 
     class EqualPoem : InbuiltPoem

@@ -12,12 +12,25 @@ namespace Verse
         public bool[] copy;
         public bool copyReturn;
         public bool hasReturn;
+
+        public String asC
+        {
+            get
+            {
+                String argList = "";
+                for(int i =0; i < arguments.Count ; i++)
+                    argList += (copy[i] ? "var " : "var* ") + arguments[i] + ((i == arguments.Count -1) ? "" : ", ");
+
+                return (hasReturn ? (copyReturn ? "var " : "var* ") : "void ") + ID + " (" + argList + ")";
+            }
+        }
     }
 
     struct uncompiledPoem
     {
         public signiture sig;
         public Queue<Token> tokens;
+        public List<ParsedExp> exps;
     }
 
     struct LeftRightVal
@@ -34,6 +47,8 @@ namespace Verse
     abstract class ParsedExp
     {
         public abstract Action finalise(Parse parser);
+        public abstract String finaliseC(Parse parser, signiture poemSig);
+
     }
 
     class DeclareExp : ParsedExp
@@ -50,14 +65,19 @@ namespace Verse
         {
             return new Declare(parser.resolveID(id),val);
         }
+
+        public override string finaliseC(Parse parser, signiture poemSig)
+        {
+            return "var* " + id + " = " + (val == null ? "emptyVar();" : "assumeVar(\"" + val + "\");");
+        }
     }
 
     class CallExp : ParsedExp
     {
-        Poem poem;
+        signiture poem;
         String[] toCopy;
         String ri;
-        public CallExp(Poem p, String[] copyIDs, String returnID)
+        public CallExp(signiture p, String[] copyIDs, String returnID)
         {
             this.poem = p;
             this.toCopy = copyIDs;
@@ -66,10 +86,17 @@ namespace Verse
 
         public override Action finalise(Parse parser)
         {
-
             int[] cop = (toCopy.Length == 0) ? null : new int[toCopy.Length];
             for(int i = 0; i < toCopy.Length ; i++) cop[i] = parser.resolveID(toCopy[i]);
-            return new Call(poem,cop,parser.resolveID(ri));
+            return new Call(parser.resolveSig(poem),cop,parser.resolveID(ri));
+        }
+
+        public override string finaliseC(Parse parser, signiture poemSig)
+        {
+            String args = "";
+            for (int i = 0; i < toCopy.Length; i++)
+                args += (poem.copy[i] ? "varCopy(" + toCopy[i] + ")" : toCopy[i]) + (i == toCopy.Length - 1 ? "" : ", ");
+            return (ri != null ? ri + " = " : "") + poem.ID + "(" + args + ");";
         }
     }
 
@@ -85,6 +112,11 @@ namespace Verse
         public override Action finalise(Parse parser)
         {
             return new Assign(parser.resolveID(l), parser.resolveID(r));
+        }
+
+        public override string finaliseC(Parse parser, signiture poemSig)
+        {
+            return "*" + l + " = *" + r + ";";
         }
     }
 
@@ -102,6 +134,11 @@ namespace Verse
             int index = (id == null) ? -1 : parser.resolveID(id);
             return new Return(index);
         }
+
+        public override string finaliseC(Parse parser, signiture poemSig)
+        {
+            return "return " + (poemSig.copyReturn ? "varCopy(" + id + ")": id) + ";";
+        }
     }
 
     class BranchIfExp : ParsedExp
@@ -118,7 +155,12 @@ namespace Verse
 
         public override Action finalise(Parse parser)
         {
-            return new BranchIf(parser.resolveLabel(jumpLabel), parser.resolveLiteral(testable), invert);
+            return new BranchIf(parser.resolveLabel(jumpLabel), parser.resolveID(testable), invert);
+        }
+
+        public override string finaliseC(Parse parser, signiture poemSig)
+        {
+            return "if(" + (invert ? "!" : "") + "varTest(" + testable + ")) goto " + jumpLabel + ";";
         }
     }
 
@@ -135,6 +177,11 @@ namespace Verse
         {
             return new Branch(parser.resolveLabel(jumpLabel));
         }
+
+        public override string finaliseC(Parse parser, signiture poemSig)
+        {
+            return "goto " + jumpLabel + ";";
+        }
     }
 
     class Parse
@@ -146,11 +193,96 @@ namespace Verse
             this.lexer = lexer;
         }
 
+        Dictionary<signiture, Poem> sigResolve;
+
+        public Poem resolveSig(signiture s)
+        {
+            return sigResolve[s];
+        }
+
         public Anthology compile()
         {
+            makeExps();
+            sigResolve = new Dictionary<signiture, Poem>();
 
-            functionTable = new Dictionary<string, Poem>();
-            List<uncompiledPoem> poems = new List<uncompiledPoem>();
+            foreach (InbuiltPoem p in InbuiltPoem.allInbuilt) sigResolve.Add(p.sig, p);
+
+            int i = 0;
+            Poem[] compiledPoems = new Poem[poems.Count];
+            foreach (uncompiledPoem up in poems)
+            {
+                Poem p = new Poem(up.sig);
+                compiledPoems[i++] = p;
+                sigResolve.Add(up.sig, p);
+               
+            }
+            i = 0;
+            foreach (uncompiledPoem up in poems)
+            {
+                Poem p = compiledPoems[i++];
+                Action[] acts = new Action[up.exps.Count];
+
+                int j = 0;
+                foreach (ParsedExp pe in up.exps)
+                {
+                    acts[j++] = pe.finalise(this);
+                }
+
+                p.setActions(acts, varCount);
+            }
+            
+            Anthology a = new Anthology(compiledPoems[0], compiledPoems);
+            return a;
+        }
+
+        public string compileC()
+        {
+            makeExps();
+
+            String all = "#include poem.h\n#include inbuiltPoems.h\n\n";
+
+
+            foreach (uncompiledPoem up in poems)
+            {
+                all += up.sig.asC + ";\n";
+            }
+            all += "\n";
+
+            foreach (uncompiledPoem up in poems)
+            {
+                String[] lines = new String[up.exps.Count];
+                int j = 0;
+                foreach (ParsedExp pe in up.exps)
+                {
+                    lines[j++] = "  " + pe.finaliseC(this, up.sig);
+                }
+
+                foreach(KeyValuePair<String, int> pair in labels) 
+                {
+                    lines[pair.Value] = pair.Key + ": " + lines[pair.Value];
+                }
+
+                String tmpDef = "";
+                for (int i = 0; i < tmpCount; i++) tmpDef += "var* _tmp" + i + "; ";
+                if (tmpDef != "") tmpDef += "\n";
+
+                String body = String.Join("\n", lines);
+                all += up.sig.asC + " {\n" + tmpDef + body + "\n}\n\n";
+            }
+
+            uncompiledPoem main = poems[0];
+            String entrySig = "void main(int agrc, char** argv) {\n";
+            String entryBody = "//TODO: call entry point with arguments, unwrap result and out it\n";
+
+            all += entrySig + entryBody + "\n}";
+            return all;
+        }
+
+        private void makeExps()
+        {
+
+            functionTable = new Dictionary<string, signiture>();
+            poems = new List<uncompiledPoem>();
 
             while (!lexer.EOS)
             {
@@ -167,57 +299,47 @@ namespace Verse
                 poems.Add(cp);
             }
             lineNo = 1;
-            Poem[] compiledPoems = new Poem[poems.Count];
-            int i = 0;
 
             //inbuilt functions are added to the table
-            functionTable.Add("SAY", InbuiltPoem.sayPoem);
-            functionTable.Add("READ", InbuiltPoem.readPoem);
-            functionTable.Add("DECLARE", InbuiltPoem.sayPoem);
-            functionTable.Add("ADD", InbuiltPoem.addPoem);
-            functionTable.Add("SUM", InbuiltPoem.addPoem);
-            functionTable.Add("JOIN", InbuiltPoem.addPoem);
-            functionTable.Add("TAKE", InbuiltPoem.subPoem);
-            functionTable.Add("MULTIPLY", InbuiltPoem.multPoem);
-            functionTable.Add("DIVIDE", InbuiltPoem.divPoem);
-            functionTable.Add("REMAIN", InbuiltPoem.modPoem);
-            functionTable.Add("BOTH", InbuiltPoem.addPoem);
-            functionTable.Add("EITHER", InbuiltPoem.orPoem);
-            functionTable.Add("EXCLUSIVELY", InbuiltPoem.xorPoem);
-            functionTable.Add("NOT", InbuiltPoem.notPoem);
-            functionTable.Add("SAME", InbuiltPoem.equalPoem);
+            functionTable.Add("SAY", InbuiltPoem.sayPoem.sig);
+            functionTable.Add("READ", InbuiltPoem.readPoem.sig);
+            functionTable.Add("DECLARE", InbuiltPoem.sayPoem.sig);
+            functionTable.Add("ADD", InbuiltPoem.addPoem.sig);
+            functionTable.Add("SUM", InbuiltPoem.addPoem.sig);
+            functionTable.Add("JOIN", InbuiltPoem.addPoem.sig);
+            functionTable.Add("TAKE", InbuiltPoem.subPoem.sig);
+            functionTable.Add("MULTIPLY", InbuiltPoem.multPoem.sig);
+            functionTable.Add("DIVIDE", InbuiltPoem.divPoem.sig);
+            functionTable.Add("REMAIN", InbuiltPoem.modPoem.sig);
+            functionTable.Add("BOTH", InbuiltPoem.addPoem.sig);
+            functionTable.Add("EITHER", InbuiltPoem.orPoem.sig);
+            functionTable.Add("EXCLUSIVELY", InbuiltPoem.xorPoem.sig);
+            functionTable.Add("NOT", InbuiltPoem.notPoem.sig);
+            functionTable.Add("SAME", InbuiltPoem.equalPoem.sig);
 
             foreach (uncompiledPoem uncompiled in poems)
             {
-                functionTable.Add(uncompiled.sig.ID,compiledPoems[i++] = new Poem(uncompiled.sig));
+                functionTable.Add(uncompiled.sig.ID, uncompiled.sig);
             }
-            i = 0;
             foreach (uncompiledPoem uncompiled in poems)
             {
-                buildPoem(compiledPoems[i++], uncompiled);
+                buildPoem(uncompiled);
             }
-
-            Anthology a = new Anthology(compiledPoems[0],compiledPoems);
-            return a;
-            
         }
 
-        Dictionary<String, Poem> functionTable;
+        List<uncompiledPoem> poems;
+        Dictionary<String, signiture> functionTable;
         HashSet<String> allVars;
         Dictionary<String, int> variableTable;
         List<Tuple<Word, LeftRightVal>> assignmentMatches;
-        List<ParsedExp> exps;
         Dictionary<String, int> labels;
         private int varCount;
-
-
 
         private void resetState()
         {
             allVars = new HashSet<string>();
             variableTable = new Dictionary<string, int>();
             assignmentMatches = new List<Tuple<Word, LeftRightVal>>();
-            exps = new List<ParsedExp>();
             labels = new Dictionary<string, int>();
             varCount = 0;
         }
@@ -228,6 +350,7 @@ namespace Verse
             String lbl = "label" + (labelI++);
             return lbl;
         }
+
         public int resolveLabel(String label)
         {
             return labels[label];
@@ -246,23 +369,23 @@ namespace Verse
 
         public String createTmp()
         {
-            String s = "_" + (tmpCount++);
+            String s = "_tmp" + (tmpCount++);
             resolveID(s);
             return s;
         }
 
-        public int resolveLiteral(String id)
+        public int resolveLiteral(uncompiledPoem up,String id)
         {
             bool needAssign = !variableTable.Keys.Contains(id);
             int index = resolveID(id);
             if (needAssign)
             {
-                exps.Add(new DeclareExp(id, id.Remove(0, 1)));
+                up.exps.Add(new DeclareExp(id, id.Remove(0, 1)));
             }
             return index;
         }
 
-        private void buildPoem(Poem p, uncompiledPoem up)
+        private void buildPoem(uncompiledPoem up)
         {
             resetState();
             lineNo++;
@@ -277,23 +400,15 @@ namespace Verse
             {
                 if (up.tokens.Peek().tokenType == TT.FullStop) error("Full stop found without matched if or while");
                 if (up.tokens.Peek().tokenType == TT.SemiColon) error("Semi colon encountered without matching if");
-                buildLine(p, up);
+                buildLine(up);
             }
 
-            Action[] acts = new Action[exps.Count];
-            int i = 0;
-            foreach (ParsedExp pe in exps)
-            {
-                acts[i++] = pe.finalise(this);
-            }
-
-            p.setActions(acts, varCount);
         }
 
         Word lastWord = null;
         int lineStartActionLabel;
 
-        private void buildLine(Poem p, uncompiledPoem up)
+        private void buildLine(uncompiledPoem up)
         {
             //FIXME error with . and ;
 
@@ -302,13 +417,13 @@ namespace Verse
             LeftRightVal lrv;
             lrv.left = null; lrv.right = null;
 
-            lineStartActionLabel = exps.Count;
+            lineStartActionLabel = up.exps.Count;
             while ((t = up.tokens.Peek()).tokenType == TT.Word || t.tokenType == TT.Literal)
             {
                 up.tokens.Dequeue();
                 if(t.tokenType == TT.Literal)
                 {
-                    lrv.right = "$" + t.wordV;
+                    lrv.right = "_" + t.wordV;
                     lastWord = null;
                     continue;
                 }
@@ -316,7 +431,7 @@ namespace Verse
                 Word cword = new Word(t.wordV);
                 if (functionTable.Keys.Contains(t.wordV))
                 {
-                    lrv.right = buildFunction(p, up, t.wordV);
+                    lrv.right = buildFunction(up, t.wordV);
                     //FIXME should we be setting ladtWord to null?
                 }
                 else if (allVars.Contains(t.wordV))
@@ -328,7 +443,7 @@ namespace Verse
                 {
                     if (lastWord != null && cword.alliterate(lastWord))
                     {
-                        LeftRightVal tmpLRV = buildDecleration(p, up, cword);
+                        LeftRightVal tmpLRV = buildDecleration(up, cword);
                         allVars.Add(cword.ToString());
                         lrv.left = tmpLRV.left;
                         if (tmpLRV.right != null) lrv.right = tmpLRV.right;
@@ -345,7 +460,7 @@ namespace Verse
                     if (lineEnding.Item1.primaryRyhme(lastWord))
                     {
                         assignmentMatches.Remove(lineEnding);
-                        buildAssignment(p, up, lineEnding.Item2.left, lrv.right);
+                        buildAssignment(up, lineEnding.Item2.left, lrv.right);
                         break;
                     }
                 }
@@ -359,16 +474,16 @@ namespace Verse
 
             if (t.tokenType == TT.NewLine) lineNo++;
             else if (t.tokenType == TT.EOS) return;
-            else if (t.tokenType == TT.QuestionMark) buildIF(p, up, lrv.right);
-            else if (t.tokenType == TT.ExclamationMark) buildReturn(p, up, lrv.right);
-            else if (t.tokenType == TT.Colon) buildWhile(p, up, lrv.right);
+            else if (t.tokenType == TT.QuestionMark) buildIF(up, lrv.right);
+            else if (t.tokenType == TT.ExclamationMark) buildReturn(up, lrv.right);
+            else if (t.tokenType == TT.Colon) buildWhile(up, lrv.right);
         }
 
-        private String buildFunction(Poem p, uncompiledPoem up, String functionName)
+        private String buildFunction(uncompiledPoem up, String functionName)
         {
 
 
-            signiture s = functionTable[functionName].sig;
+            signiture s = functionTable[functionName];
             int argsRemain = s.arguments.Count;
             String[] indexs = new String[argsRemain];
             Token t;
@@ -381,7 +496,7 @@ namespace Verse
                 {
                     if (functionTable.Keys.Contains(t.wordV))
                     {
-                        indexs[index++] = buildFunction(p, up, t.wordV);
+                        indexs[index++] = buildFunction(up, t.wordV);
                     }
                     else
                     {
@@ -395,8 +510,8 @@ namespace Verse
                 }
                 else if (t.tokenType == TT.Literal)
                 {
-                    resolveLiteral("$" + t.wordV);
-                    indexs[index++] = "$" + t.wordV;
+                    resolveLiteral(up, "_" + t.wordV);
+                    indexs[index++] = "_" + t.wordV;
                     lastWord = null;
                 }
                 else error("Was expecting more arguments after " + functionName + " call.");
@@ -404,11 +519,11 @@ namespace Verse
             }
 
             String returnTmp = s.hasReturn ? createTmp() : null;
-            exps.Add(new CallExp(functionTable[functionName], indexs, returnTmp));
+            up.exps.Add(new CallExp(functionTable[functionName], indexs, returnTmp));
             return returnTmp;
         }
 
-        private LeftRightVal buildDecleration(Poem p, uncompiledPoem up, Word firstOccurence)
+        private LeftRightVal buildDecleration(uncompiledPoem up, Word firstOccurence)
         {
             Queue<Word> toDeclare = new Queue<Word>();
             toDeclare.Enqueue(firstOccurence);
@@ -438,33 +553,33 @@ namespace Verse
                 variableName = w.ToString();
                 if (variableTable.Keys.Contains(variableName)) error(variableName + " was already declared.");
                 resolveID(variableName);
-                exps.Add(new DeclareExp(variableName, init));
+                up.exps.Add(new DeclareExp(variableName, init));
             }
 
             return new LeftRightVal(variableName, init);
         }
 
-        private void buildAssignment(Poem p, uncompiledPoem up, String left, String right)
+        private void buildAssignment(uncompiledPoem up, String left, String right)
         {
-            if (right.First() == '$') resolveLiteral(right);
-            exps.Add(new AssignExp(left, right));
+            if (right.First() == '_') resolveLiteral(up, right);
+            up.exps.Add(new AssignExp(left, right));
         }
 
-        private void buildReturn(Poem p, uncompiledPoem up, String lv)
+        private void buildReturn(uncompiledPoem up, String lv)
         {
-            exps.Add(new ReturnExp(lv));
+            up.exps.Add(new ReturnExp(lv));
         }
 
-        private void buildIF(Poem p, uncompiledPoem up, String rv)
+        private void buildIF(uncompiledPoem up, String rv)
         {
-            if (rv.First() == '$') resolveLiteral(rv);
+            if (rv.First() == '_') resolveLiteral(up, rv);
             String label = newLabel();
-            exps.Add(new BranchIfExp(rv, label, true));
+            up.exps.Add(new BranchIfExp(rv, label, true));
             Token t;
 
             do
             {
-                buildLine(p, up);
+                buildLine(up);
                 t = up.tokens.Peek();
             } while (t.tokenType != TT.FullStop && t.tokenType != TT.SemiColon);
 
@@ -472,49 +587,49 @@ namespace Verse
 
             if (t.tokenType == TT.FullStop)
             {
-                labels.Add(label, exps.Count);
+                labels.Add(label, up.exps.Count);
             }
             else if(t.tokenType == TT.SemiColon)
             {
                 String secondLabel = newLabel();
-                exps.Add(new BranchExp(secondLabel));
-                labels.Add(label, exps.Count);
+                up.exps.Add(new BranchExp(secondLabel));
+                labels.Add(label, up.exps.Count);
 
                 do
                 {
-                    buildLine(p, up);
+                    buildLine(up);
                     t = up.tokens.Peek();
                 } while (t.tokenType != TT.FullStop);
                 
                 up.tokens.Dequeue();
 
-                labels.Add(secondLabel, exps.Count);
+                labels.Add(secondLabel, up.exps.Count);
             }
             
         }
 
-        private void buildWhile(Poem p, uncompiledPoem up, String rv)
+        private void buildWhile(uncompiledPoem up, String rv)
         {
-            if (rv.First() == '$') resolveLiteral(rv);
-            List<ParsedExp> whileBody = exps.GetRange(lineStartActionLabel, exps.Count - lineStartActionLabel);
-            exps.RemoveRange(lineStartActionLabel, exps.Count - lineStartActionLabel);
+            if (rv.First() == '_') resolveLiteral(up, rv);
+            List<ParsedExp> whileBody = up.exps.GetRange(lineStartActionLabel, up.exps.Count - lineStartActionLabel);
+            up.exps.RemoveRange(lineStartActionLabel, up.exps.Count - lineStartActionLabel);
 
             String endLabel = newLabel();
             String startLabel = newLabel();
-            exps.Add(new BranchExp(endLabel));
-            labels.Add(startLabel, exps.Count);
+            up.exps.Add(new BranchExp(endLabel));
+            labels.Add(startLabel, up.exps.Count);
             Token t;
 
             do
             {
-                buildLine(p, up);
+                buildLine(up);
                 t = up.tokens.Peek();
             } while (t.tokenType != TT.FullStop);
             up.tokens.Dequeue();
 
-            labels.Add(endLabel, exps.Count);
-            exps.AddRange(whileBody);
-            exps.Add(new BranchIfExp(rv, startLabel, false));
+            labels.Add(endLabel, up.exps.Count);
+            up.exps.AddRange(whileBody);
+            up.exps.Add(new BranchIfExp(rv, startLabel, false));
         }
 
         private uncompiledPoem compilePoem()
@@ -530,10 +645,12 @@ namespace Verse
                 tokens.Enqueue(t);
                 lexer.next();
             }
+
             tokens.Enqueue(Token.EOS);
             uncompiledPoem up;
             up.sig = sig;
             up.tokens = tokens;
+            up.exps = new List<ParsedExp>();
 
             return up;
         }
