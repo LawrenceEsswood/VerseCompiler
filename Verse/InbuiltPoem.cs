@@ -19,6 +19,26 @@ namespace Verse
         public static InbuiltPoem orPoem = new OrPoem();
         public static InbuiltPoem xorPoem = new XorPoem();
         public static InbuiltPoem notPoem = new NotPoem();
+        public static InbuiltPoem equalPoem = new EqualPoem();
+    }
+
+    class EqualPoem : InbuiltPoem
+    {
+        public EqualPoem()
+            : base(2)
+        {
+            this.sig.ID = "EQUAL";
+            this.sig.arguments = new List<string>() { "A", "B" };
+            this.sig.copy = new bool[] { false, false };
+            this.sig.copyReturn = false;
+            this.sig.hasReturn = true;
+        }
+
+        public override Variable run(Variable[] localStack)
+        {
+            return new Variable(Variable.equal(localStack[0], localStack[1]));
+        }
+
     }
 
     class SayPoem : InbuiltPoem

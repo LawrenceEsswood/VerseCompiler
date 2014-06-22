@@ -185,6 +185,7 @@ namespace Verse
             functionTable.Add("EITHER", InbuiltPoem.orPoem);
             functionTable.Add("EXCLUSIVELY", InbuiltPoem.xorPoem);
             functionTable.Add("NOT", InbuiltPoem.notPoem);
+            functionTable.Add("SAME", InbuiltPoem.equalPoem);
 
             foreach (uncompiledPoem uncompiled in poems)
             {
@@ -290,6 +291,7 @@ namespace Verse
         }
 
         Word lastWord = null;
+        int lineStartActionLabel;
 
         private void buildLine(Poem p, uncompiledPoem up)
         {
@@ -300,6 +302,7 @@ namespace Verse
             LeftRightVal lrv;
             lrv.left = null; lrv.right = null;
 
+            lineStartActionLabel = exps.Count;
             while ((t = up.tokens.Peek()).tokenType == TT.Word || t.tokenType == TT.Literal)
             {
                 up.tokens.Dequeue();
@@ -493,9 +496,11 @@ namespace Verse
         private void buildWhile(Poem p, uncompiledPoem up, String rv)
         {
             if (rv.First() == '$') resolveLiteral(rv);
+            List<ParsedExp> whileBody = exps.GetRange(lineStartActionLabel, exps.Count - lineStartActionLabel);
+            exps.RemoveRange(lineStartActionLabel, exps.Count - lineStartActionLabel);
+
             String endLabel = newLabel();
             String startLabel = newLabel();
-
             exps.Add(new BranchExp(endLabel));
             labels.Add(startLabel, exps.Count);
             Token t;
@@ -508,7 +513,7 @@ namespace Verse
             up.tokens.Dequeue();
 
             labels.Add(endLabel, exps.Count);
-
+            exps.AddRange(whileBody);
             exps.Add(new BranchIfExp(rv, startLabel, false));
         }
 

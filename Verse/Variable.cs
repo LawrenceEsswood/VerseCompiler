@@ -8,10 +8,10 @@ namespace Verse
 {
     enum types : byte
     {
-        type_string,
-        type_int,
-        type_float,
-        type_bool
+        type_bool = 0,
+        type_string = 1,
+        type_float = 2,
+        type_int = 3,
     };
 
     [StructLayout(LayoutKind.Explicit)] 
@@ -92,12 +92,26 @@ namespace Verse
             return new Variable(this);
         }
 
-        public Boolean test()
+        public bool test()
         {
             return (type == types.type_bool && value.boolV) ||
                 (type == types.type_int && value.intV != 0) ||
                 (type == types.type_float && value.floatV != 0)
                 || (type == types.type_string && value.strV.Length != 0);
+        }
+
+        public static bool equal(Variable v1, Variable v2)
+        {
+            if(v2.type < v1.type) { Variable tmp = v1; v1 = v2; v2 = tmp;}
+
+            switch (v1.type)
+            {
+                case types.type_bool: return v2.test() == v1.value.boolV;
+                case types.type_string: return v2.asString() == v1.value.strV;
+                case types.type_float: return (v2.type == types.type_int && (float)v2.value.intV == v1.value.floatV) || (v2.value.floatV == v1.value.floatV);
+                case types.type_int: return (v2.value.intV == v1.value.intV);
+                default: throw new Exception("Not is only defined for int and bool");
+            }
         }
 
         public String asString()
