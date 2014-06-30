@@ -316,6 +316,17 @@ namespace Verse
             functionTable.Add("EXCLUSIVELY", InbuiltPoem.xorPoem.sig);
             functionTable.Add("NOT", InbuiltPoem.notPoem.sig);
             functionTable.Add("SAME", InbuiltPoem.equalPoem.sig);
+            functionTable.Add("FIRST", InbuiltPoem.hdPoem.sig);
+            functionTable.Add("END", InbuiltPoem.tlPoem.sig);
+            functionTable.Add("FOLLOW", InbuiltPoem.appendPoem.sig);
+            functionTable.Add("EMPTY", InbuiltPoem.emptyPoem.sig);
+            functionTable.Add("LESS", InbuiltPoem.lessPoem.sig);
+            functionTable.Add("SMALLER", InbuiltPoem.lessPoem.sig);
+            functionTable.Add("SMALL", InbuiltPoem.lessPoem.sig);
+            functionTable.Add("MORE", InbuiltPoem.morePoem.sig);
+            functionTable.Add("GREATER", InbuiltPoem.morePoem.sig);
+            functionTable.Add("LARGER", InbuiltPoem.morePoem.sig);
+            functionTable.Add("LARGE", InbuiltPoem.morePoem.sig);
 
             foreach (uncompiledPoem uncompiled in poems)
             {
@@ -484,7 +495,7 @@ namespace Verse
 
 
             signiture s = functionTable[functionName];
-            int argsRemain = s.arguments.Count;
+            int argsRemain = (s.arguments == null) ? 0 : s.arguments.Count;
             String[] indexs = new String[argsRemain];
             Token t;
             int index = 0;

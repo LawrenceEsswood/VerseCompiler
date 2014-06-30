@@ -19,7 +19,10 @@ namespace Verse
             Lex lexer = new Lex((StreamReader)sr);
             Parse parser = new Parse(lexer);
 
-            printC(parser);
+            //TODO: compiler flag for this
+            //printC(parser);
+            interpret(parser);
+
             Console.ReadKey();
         }
 

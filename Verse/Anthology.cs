@@ -18,8 +18,7 @@ namespace Verse
 
         public Variable run(Variable[] args)
         {
-            try
-            {
+
                 int[] copyVals = null;
                 bool[] doCopy = null;
                 if (args != null)
@@ -37,13 +36,7 @@ namespace Verse
                 Action a = new Call(main, copyVals, 0);
                 a.run(args, 0);
                 return args[0];
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("Error while executing:");
-                Console.WriteLine(e.Message);
-                return null;
-            }
+
         }
         
     }

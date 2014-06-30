@@ -20,7 +20,125 @@ namespace Verse
         public static InbuiltPoem xorPoem = new XorPoem();
         public static InbuiltPoem notPoem = new NotPoem();
         public static InbuiltPoem equalPoem = new EqualPoem();
-        public static List<InbuiltPoem> allInbuilt = new List<InbuiltPoem> { sayPoem, readPoem, addPoem, subPoem, multPoem, divPoem, modPoem, andPoem, orPoem, xorPoem, notPoem, equalPoem };
+        public static InbuiltPoem hdPoem = new HeadPoem();
+        public static InbuiltPoem tlPoem = new TailPoem();
+        public static InbuiltPoem appendPoem = new AppendPoem();
+        public static InbuiltPoem emptyPoem = new EmptyPoem();
+        public static InbuiltPoem lessPoem = new LessPoem();
+        public static InbuiltPoem morePoem = new MorePoem();
+        public static List<InbuiltPoem> allInbuilt = new List<InbuiltPoem> { sayPoem, readPoem, addPoem, subPoem, multPoem, divPoem, modPoem, andPoem, orPoem, xorPoem, notPoem,
+                                                       equalPoem, hdPoem, tlPoem, appendPoem, emptyPoem, lessPoem, morePoem };
+    }
+
+    class HeadPoem : InbuiltPoem
+    {
+        public HeadPoem()
+            : base(1)
+        {
+            this.sig.ID = "HD";
+            this.sig.arguments = new List<string>() { "LST" };
+            this.sig.copy = new bool[] { false };
+            this.sig.copyReturn = false;
+            this.sig.hasReturn = true;
+        }
+
+        public override Variable run(Variable[] localStack)
+        {
+            return localStack[0].hd();
+        }
+    }
+
+    class TailPoem : InbuiltPoem
+    {
+        public TailPoem()
+            : base(1)
+        {
+            this.sig.ID = "TAIL";
+            this.sig.arguments = new List<string>() { "LST" };
+            this.sig.copy = new bool[] { false };
+            this.sig.copyReturn = false;
+            this.sig.hasReturn = true;
+        }
+
+        public override Variable run(Variable[] localStack)
+        {
+            return new Variable(localStack[0].tl());
+        }
+    }
+
+    class AppendPoem : InbuiltPoem
+    {
+        public AppendPoem()
+            : base(2)
+        {
+            this.sig.ID = "APPEND";
+            this.sig.arguments = new List<string>() { "LSTA", "LSTB" };
+            this.sig.copy = new bool[] { false , false};
+            this.sig.copyReturn = false;
+            this.sig.hasReturn = false;
+        } 
+
+        public override Variable run(Variable[] localStack)
+        {
+            Variable.append(localStack[0], localStack[1]);
+            return null;
+        }
+    }
+
+    class EmptyPoem : InbuiltPoem
+    {
+        public EmptyPoem()
+            : base(0)
+        {
+            this.sig.ID = "EMPTY";
+            this.sig.arguments = null;
+            this.sig.copy = null;
+            this.sig.copyReturn = false;
+            this.sig.hasReturn = true;
+        }
+
+        public override Variable run(Variable[] localStack)
+        {
+            return Variable.nodeOf(null);
+        }
+    }
+
+    class LessPoem : InbuiltPoem
+    {
+        public LessPoem()
+            : base(2)
+        {
+            this.sig.ID = "LESS";
+            this.sig.arguments = new List<string>() { "A", "B" };
+            this.sig.copy = new bool[] { false, false };
+            this.sig.copyReturn = false;
+            this.sig.hasReturn = true;
+        }
+
+        public override Variable run(Variable[] localStack)
+        {
+            return new Variable(localStack[0].lessThan(localStack[1]));
+        }
+
+    }
+
+    class MorePoem : InbuiltPoem
+    {
+        public MorePoem()
+            : base(2)
+        {
+            this.sig.ID = "MORE";
+            this.sig.arguments = new List<string>() { "A", "B" };
+            this.sig.copy = new bool[] { false, false };
+            this.sig.copyReturn = false;
+            this.sig.hasReturn = true;
+        }
+
+        public override Variable run(Variable[] localStack)
+        {
+            return new Variable(localStack[0].moreThan(localStack[1]));
+        }
+
     }
 
     class EqualPoem : InbuiltPoem

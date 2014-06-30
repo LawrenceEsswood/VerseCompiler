@@ -14,6 +14,6 @@ typedef var
 }
 
 var* emptyVar();
-var* assumeVar();
+var* assumeVar(char* val);
 var* varCopy(var* toCopy);
 int varTest(var v);
