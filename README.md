@@ -46,6 +46,13 @@ Truth
 A boolean is true if it is true.
 An int or float are true if not 0.
 A string is true if it is not the empty string.
+A list is true if is not empty.
+
+
+Size
+----
+
+The size of a numeric type is itself. The size of a string or list is its length.
 
 If
 ----
@@ -104,7 +111,7 @@ Will read in and return a line from the command line.
 
 Aliases: `Add`, `Sum`, `Join`
 
-Will perform Eggs + Ham (or concat if either are strings) and return the result.
+Will perform Eggs + Ham if both arguments are numeric. If EITHER are lists, performs Eggs::Ham (or Ham::Eggs if Ham is not a list). Otherwise both are converted to strings and concanated.
 
 `Take Eggs Ham`
 
@@ -154,4 +161,38 @@ Aliases: `Not`
 
 Will perform not Eggsand return the result. Logic if bools, bitwise if ints.
 
-`And Eggs Ham`
+`First List`
+
+Aliases : `First`
+
+Returns the head of List.
+
+`End List`
+
+Aliases : `End`
+
+Returns the tail of List.
+
+`Follow ListA ListB`
+
+Aliases : `Follow`
+
+Makes the LAST node in ListA point to ListB.
+
+`Empty`
+
+Aliases : `Empty`
+
+Returns the empty list
+
+`Less Eggs Ham`
+
+Aliases : `Less, Smaller, Small`
+
+Returns Size(Eggs) < Size(Ham).
+
+`More Eggs Ham`
+
+Aliases : `More, Greater, Larger, Large`
+
+Returns Size(Eggs) > Size(Ham).
