@@ -20,8 +20,8 @@ namespace Verse
             Parse parser = new Parse(lexer);
 
             //TODO: compiler flag for this
-            //printC(parser);
-            interpret(parser);
+            printC(parser);
+            //interpret(parser);
 
             Console.ReadKey();
         }

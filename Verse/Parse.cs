@@ -34,7 +34,8 @@ namespace Verse
         public HashSet<String> allVars;
         public Dictionary<String, int> variableTable;
         public Dictionary<String, int> labels;
-        public int varCount;
+        public int varCount = 0;
+        public int tmpCount = 0;
     }
 
     struct LeftRightVal
@@ -268,7 +269,7 @@ namespace Verse
                 }
 
                 String tmpDef = "";
-                for (int i = 0; i < tmpCount; i++) tmpDef += "  var* _tmp" + i + "; ";
+                for (int i = 0; i < up.tmpCount; i++) tmpDef += "  var* _tmp" + i + "; ";
                 if (tmpDef != "") tmpDef += "\n";
 
                 String body = String.Join("\n", lines);
@@ -373,11 +374,9 @@ namespace Verse
             return newId;
         }
 
-        int tmpCount = 0;
-
         public String createTmp(uncompiledPoem up)
         {
-            String s = "_tmp" + (tmpCount++);
+            String s = "_tmp" + (up.tmpCount++);
             resolveID(s, up);
             return s;
         }
