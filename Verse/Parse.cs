@@ -26,11 +26,15 @@ namespace Verse
         }
     }
 
-    struct uncompiledPoem
+    class uncompiledPoem
     {
         public signiture sig;
         public Queue<Token> tokens;
         public List<ParsedExp> exps;
+        public HashSet<String> allVars;
+        public Dictionary<String, int> variableTable;
+        public Dictionary<String, int> labels;
+        public int varCount;
     }
 
     struct LeftRightVal
@@ -46,8 +50,8 @@ namespace Verse
 
     abstract class ParsedExp
     {
-        public abstract Action finalise(Parse parser);
-        public abstract String finaliseC(Parse parser, signiture poemSig);
+        public abstract Action finalise(Parse parser, uncompiledPoem up);
+        public abstract String finaliseC(Parse parser, uncompiledPoem up, signiture poemSig);
 
     }
 
@@ -61,12 +65,12 @@ namespace Verse
             this.val = val;
         }
 
-        public override Action finalise(Parse parser)
+        public override Action finalise(Parse parser, uncompiledPoem up)
         {
-            return new Declare(parser.resolveID(id),val);
+            return new Declare(parser.resolveID(id, up),val);
         }
 
-        public override string finaliseC(Parse parser, signiture poemSig)
+        public override string finaliseC(Parse parser, uncompiledPoem up, signiture poemSig)
         {
             return "var* " + id + " = " + (val == null ? "emptyVar();" : "assumeVar(\"" + val + "\");");
         }
@@ -84,14 +88,14 @@ namespace Verse
             this.ri = returnID;
         }
 
-        public override Action finalise(Parse parser)
+        public override Action finalise(Parse parser, uncompiledPoem up)
         {
             int[] cop = (toCopy.Length == 0) ? null : new int[toCopy.Length];
-            for(int i = 0; i < toCopy.Length ; i++) cop[i] = parser.resolveID(toCopy[i]);
-            return new Call(parser.resolveSig(poem),cop,parser.resolveID(ri));
+            for(int i = 0; i < toCopy.Length ; i++) cop[i] = parser.resolveID(toCopy[i], up);
+            return new Call(parser.resolveSig(poem),cop,parser.resolveID(ri, up));
         }
 
-        public override string finaliseC(Parse parser, signiture poemSig)
+        public override string finaliseC(Parse parser, uncompiledPoem up, signiture poemSig)
         {
             String args = "";
             for (int i = 0; i < toCopy.Length; i++)
@@ -109,12 +113,12 @@ namespace Verse
             this.r = r;
         }
 
-        public override Action finalise(Parse parser)
+        public override Action finalise(Parse parser, uncompiledPoem up)
         {
-            return new Assign(parser.resolveID(l), parser.resolveID(r));
+            return new Assign(parser.resolveID(l, up), parser.resolveID(r, up));
         }
 
-        public override string finaliseC(Parse parser, signiture poemSig)
+        public override string finaliseC(Parse parser, uncompiledPoem up, signiture poemSig)
         {
             return "*" + l + " = *" + r + ";";
         }
@@ -129,13 +133,13 @@ namespace Verse
             this.id = id;
         }
 
-        public override Action finalise(Parse parser)
+        public override Action finalise(Parse parser, uncompiledPoem up)
         {
-            int index = (id == null) ? -1 : parser.resolveID(id);
+            int index = (id == null) ? -1 : parser.resolveID(id, up);
             return new Return(index);
         }
 
-        public override string finaliseC(Parse parser, signiture poemSig)
+        public override string finaliseC(Parse parser, uncompiledPoem up, signiture poemSig)
         {
             return "return " + (poemSig.copyReturn ? "varCopy(" + id + ")": id) + ";";
         }
@@ -153,12 +157,12 @@ namespace Verse
             this.invert = invert;
         }
 
-        public override Action finalise(Parse parser)
+        public override Action finalise(Parse parser, uncompiledPoem up)
         {
-            return new BranchIf(parser.resolveLabel(jumpLabel), parser.resolveID(testable), invert);
+            return new BranchIf(parser.resolveLabel(jumpLabel, up), parser.resolveID(testable, up), invert);
         }
 
-        public override string finaliseC(Parse parser, signiture poemSig)
+        public override string finaliseC(Parse parser, uncompiledPoem up, signiture poemSig)
         {
             return "if(" + (invert ? "!" : "") + "varTest(" + testable + ")) goto " + jumpLabel + ";";
         }
@@ -173,12 +177,12 @@ namespace Verse
             this.jumpLabel = jumpLabel;
         }
 
-        public override Action finalise(Parse parser)
+        public override Action finalise(Parse parser, uncompiledPoem up)
         {
-            return new Branch(parser.resolveLabel(jumpLabel));
+            return new Branch(parser.resolveLabel(jumpLabel, up));
         }
 
-        public override string finaliseC(Parse parser, signiture poemSig)
+        public override string finaliseC(Parse parser, uncompiledPoem up, signiture poemSig)
         {
             return "goto " + jumpLabel + ";";
         }
@@ -203,6 +207,7 @@ namespace Verse
         public Anthology compile()
         {
             makeExps();
+
             sigResolve = new Dictionary<signiture, Poem>();
 
             foreach (InbuiltPoem p in InbuiltPoem.allInbuilt) sigResolve.Add(p.sig, p);
@@ -225,10 +230,10 @@ namespace Verse
                 int j = 0;
                 foreach (ParsedExp pe in up.exps)
                 {
-                    acts[j++] = pe.finalise(this);
+                    acts[j++] = pe.finalise(this, up);
                 }
 
-                p.setActions(acts, varCount);
+                p.setActions(acts, up.varCount);
             }
             
             Anthology a = new Anthology(compiledPoems[0], compiledPoems);
@@ -254,10 +259,10 @@ namespace Verse
                 int j = 0;
                 foreach (ParsedExp pe in up.exps)
                 {
-                    lines[j++] = "  " + pe.finaliseC(this, up.sig);
+                    lines[j++] = "  " + pe.finaliseC(this, up, up.sig);
                 }
 
-                foreach(KeyValuePair<String, int> pair in labels) 
+                foreach(KeyValuePair<String, int> pair in up.labels) 
                 {
                     lines[pair.Value] = "  " + pair.Key + ": " + lines[pair.Value];
                 }
@@ -340,19 +345,11 @@ namespace Verse
 
         List<uncompiledPoem> poems;
         Dictionary<String, signiture> functionTable;
-        HashSet<String> allVars;
-        Dictionary<String, int> variableTable;
         List<Tuple<Word, LeftRightVal>> assignmentMatches;
-        Dictionary<String, int> labels;
-        private int varCount;
 
         private void resetState()
         {
-            allVars = new HashSet<string>();
-            variableTable = new Dictionary<string, int>();
             assignmentMatches = new List<Tuple<Word, LeftRightVal>>();
-            labels = new Dictionary<string, int>();
-            varCount = 0;
         }
 
         int labelI = 0;
@@ -362,33 +359,33 @@ namespace Verse
             return lbl;
         }
 
-        public int resolveLabel(String label)
+        public int resolveLabel(String label, uncompiledPoem up)
         {
-            return labels[label];
+            return up.labels[label];
         }
 
-        public int resolveID(String id)
+        public int resolveID(String id, uncompiledPoem up)
         {
             if (id == null) return -1;
-            if (variableTable.Keys.Contains(id)) return variableTable[id];
-            int newId = varCount++;
-            variableTable.Add(id, newId);
+            if (up.variableTable.Keys.Contains(id)) return up.variableTable[id];
+            int newId = up.varCount++;
+            up.variableTable.Add(id, newId);
             return newId;
         }
 
         int tmpCount = 0;
 
-        public String createTmp()
+        public String createTmp(uncompiledPoem up)
         {
             String s = "_tmp" + (tmpCount++);
-            resolveID(s);
+            resolveID(s, up);
             return s;
         }
 
         public int resolveLiteral(uncompiledPoem up,String id)
         {
-            bool needAssign = !variableTable.Keys.Contains(id);
-            int index = resolveID(id);
+            bool needAssign = !up.variableTable.Keys.Contains(id);
+            int index = resolveID(id, up);
             if (needAssign)
             {
                 up.exps.Add(new DeclareExp(id, id.Remove(0, 1)));
@@ -403,8 +400,8 @@ namespace Verse
             
             foreach (String s in up.sig.arguments)
             {
-                allVars.Add(s);
-                resolveID(s);
+                up.allVars.Add(s);
+                resolveID(s, up);
             }
 
             while (up.tokens.Count != 0)
@@ -445,7 +442,7 @@ namespace Verse
                     lrv.right = buildFunction(up, t.wordV);
                     //FIXME should we be setting ladtWord to null?
                 }
-                else if (allVars.Contains(t.wordV))
+                else if (up.allVars.Contains(t.wordV))
                 {
                     lrv.left = lrv.right = t.wordV;
                     lastWord = cword;
@@ -455,7 +452,7 @@ namespace Verse
                     if (lastWord != null && cword.alliterate(lastWord))
                     {
                         LeftRightVal tmpLRV = buildDecleration(up, cword);
-                        allVars.Add(cword.ToString());
+                        up.allVars.Add(cword.ToString());
                         lrv.left = tmpLRV.left;
                         if (tmpLRV.right != null) lrv.right = tmpLRV.right;
                     }
@@ -511,7 +508,7 @@ namespace Verse
                     }
                     else
                     {
-                        if (variableTable.Keys.Contains(t.wordV))
+                        if (up.variableTable.Keys.Contains(t.wordV))
                         {
                             indexs[index++] = t.wordV;
                             lastWord = new Word(t.wordV);
@@ -529,7 +526,7 @@ namespace Verse
                 argsRemain--;
             }
 
-            String returnTmp = s.hasReturn ? createTmp() : null;
+            String returnTmp = s.hasReturn ? createTmp(up) : null;
             up.exps.Add(new CallExp(functionTable[functionName], indexs, returnTmp));
             return returnTmp;
         }
@@ -562,8 +559,8 @@ namespace Verse
             {
                 Word w = toDeclare.Dequeue();
                 variableName = w.ToString();
-                if (variableTable.Keys.Contains(variableName)) error(variableName + " was already declared.");
-                resolveID(variableName);
+                if (up.variableTable.Keys.Contains(variableName)) error(variableName + " was already declared.");
+                resolveID(variableName, up);
                 up.exps.Add(new DeclareExp(variableName, init));
             }
 
@@ -598,13 +595,13 @@ namespace Verse
 
             if (t.tokenType == TT.FullStop)
             {
-                labels.Add(label, up.exps.Count);
+                up.labels.Add(label, up.exps.Count);
             }
             else if(t.tokenType == TT.SemiColon)
             {
                 String secondLabel = newLabel();
                 up.exps.Add(new BranchExp(secondLabel));
-                labels.Add(label, up.exps.Count);
+                up.labels.Add(label, up.exps.Count);
 
                 do
                 {
@@ -614,7 +611,7 @@ namespace Verse
                 
                 up.tokens.Dequeue();
 
-                labels.Add(secondLabel, up.exps.Count);
+                up.labels.Add(secondLabel, up.exps.Count);
             }
             
         }
@@ -628,7 +625,7 @@ namespace Verse
             String endLabel = newLabel();
             String startLabel = newLabel();
             up.exps.Add(new BranchExp(endLabel));
-            labels.Add(startLabel, up.exps.Count);
+            up.labels.Add(startLabel, up.exps.Count);
             Token t;
 
             do
@@ -638,7 +635,7 @@ namespace Verse
             } while (t.tokenType != TT.FullStop);
             up.tokens.Dequeue();
 
-            labels.Add(endLabel, up.exps.Count);
+            up.labels.Add(endLabel, up.exps.Count);
             up.exps.AddRange(whileBody);
             up.exps.Add(new BranchIfExp(rv, startLabel, false));
         }
@@ -658,11 +655,14 @@ namespace Verse
             }
 
             tokens.Enqueue(Token.EOS);
-            uncompiledPoem up;
+            uncompiledPoem up = new uncompiledPoem();
             up.sig = sig;
             up.tokens = tokens;
             up.exps = new List<ParsedExp>();
-
+            up.allVars = new HashSet<string>();
+            up.variableTable = new Dictionary<string,int>();
+            up.labels = new Dictionary<string,int>();
+            up.varCount = 0;
             return up;
         }
 
