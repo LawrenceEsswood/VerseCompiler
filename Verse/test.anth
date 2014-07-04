@@ -1,4 +1,9 @@
-﻿~~~Begin~~~
+﻿~~~Test~~~
+cool crazy cat "1"
+say crazy flipper
+say cat carrot
+
+~~~Begin~~~
 Crazy counter for this part
 With a "10" here does start
 And so the counter goes on:
@@ -16,3 +21,10 @@ mighty man
 add "3" add "4" add "5" lots can
 follow rum man word
 say rum cap
+
+~~~| Greatest common divisor |~~~
+Is this a less common divisor?
+Then the greatest divisor is common instead!.
+On the other hand, does this divisor appear often?
+Then so the greatest divisor does remain common, and this divisor too!.
+But then, how common does it stay!

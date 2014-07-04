@@ -31,7 +31,6 @@ namespace Verse
         public signiture sig;
         public Queue<Token> tokens;
         public List<ParsedExp> exps;
-        public HashSet<String> allVars;
         public Dictionary<String, int> variableTable;
         public Dictionary<String, int> labels;
         public int varCount = 0;
@@ -399,7 +398,6 @@ namespace Verse
             
             foreach (String s in up.sig.arguments)
             {
-                up.allVars.Add(s);
                 resolveID(s, up);
             }
 
@@ -438,10 +436,10 @@ namespace Verse
                 Word cword = new Word(t.wordV);
                 if (functionTable.Keys.Contains(t.wordV))
                 {
+                    lastWord = cword;
                     lrv.right = buildFunction(up, t.wordV);
-                    //FIXME should we be setting ladtWord to null?
                 }
-                else if (up.allVars.Contains(t.wordV))
+                else if (up.variableTable.Keys.Contains(t.wordV))
                 {
                     lrv.left = lrv.right = t.wordV;
                     lastWord = cword;
@@ -451,7 +449,6 @@ namespace Verse
                     if (lastWord != null && cword.alliterate(lastWord))
                     {
                         LeftRightVal tmpLRV = buildDecleration(up, cword);
-                        up.allVars.Add(cword.ToString());
                         lrv.left = tmpLRV.left;
                         if (tmpLRV.right != null) lrv.right = tmpLRV.right;
                     }
@@ -658,7 +655,6 @@ namespace Verse
             up.sig = sig;
             up.tokens = tokens;
             up.exps = new List<ParsedExp>();
-            up.allVars = new HashSet<string>();
             up.variableTable = new Dictionary<string,int>();
             up.labels = new Dictionary<string,int>();
             up.varCount = 0;
