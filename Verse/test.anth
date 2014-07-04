@@ -1,7 +1,5 @@
 ﻿~~~Test~~~
-cool crazy cat "1"
-say crazy flipper
-say cat carrot
+say Greatest "8" "12"
 
 ~~~Begin~~~
 Crazy counter for this part
@@ -24,7 +22,7 @@ say rum cap
 
 ~~~| Greatest common divisor |~~~
 Is this a less common divisor?
-Then the greatest divisor is common instead!.
+Then the greatest divisor is common instead!
 On the other hand, does this divisor appear often?
-Then so the greatest divisor does remain common, and this divisor too!.
+Then so the greatest divisor does remain common, and this divisor too!
 But then, how common does it stay!

@@ -405,6 +405,11 @@ namespace Verse
             {
                 if (up.tokens.Peek().tokenType == TT.FullStop) error("Full stop found without matched if or while");
                 if (up.tokens.Peek().tokenType == TT.SemiColon) error("Semi colon encountered without matching if");
+                if (up.tokens.Peek().tokenType == TT.ExclamationMark)
+                {
+                    warning("Top level return found, nothing afterwards will execute. If this is the end of the poem ignore this warning!");
+                    return;
+                }
                 buildLine(up);
             }
 
@@ -472,14 +477,16 @@ namespace Verse
 
             if(lastWord != null) assignmentMatches.Add(new Tuple<Word, LeftRightVal>(lastWord, lrv));
 
-            if (t.tokenType == TT.FullStop || t.tokenType == TT.SemiColon) return;
+            if (t.tokenType == TT.ExclamationMark)
+                buildReturn(up, lrv.right);
+
+            if (t.tokenType == TT.FullStop || t.tokenType == TT.SemiColon || t.tokenType == TT.ExclamationMark) return;
             
             up.tokens.Dequeue();
 
             if (t.tokenType == TT.NewLine) lineNo++;
             else if (t.tokenType == TT.EOS) return;
             else if (t.tokenType == TT.QuestionMark) buildIF(up, lrv.right);
-            else if (t.tokenType == TT.ExclamationMark) buildReturn(up, lrv.right);
             else if (t.tokenType == TT.Colon) buildWhile(up, lrv.right);
         }
 
@@ -565,6 +572,11 @@ namespace Verse
 
         private void buildAssignment(uncompiledPoem up, String left, String right)
         {
+            if (left == null || right == null)
+            {
+                warning("Null assignment attempted. Did you mean this to rhyme?");
+                return;
+            }
             if (right.First() == '_') resolveLiteral(up, right);
             up.exps.Add(new AssignExp(left, right));
         }
@@ -585,11 +597,11 @@ namespace Verse
             {
                 buildLine(up);
                 t = up.tokens.Peek();
-            } while (t.tokenType != TT.FullStop && t.tokenType != TT.SemiColon);
+            } while (t.tokenType != TT.FullStop && t.tokenType != TT.SemiColon && t.tokenType != TT.ExclamationMark);
 
             up.tokens.Dequeue();
 
-            if (t.tokenType == TT.FullStop)
+            if (t.tokenType == TT.FullStop || t.tokenType == TT.ExclamationMark)
             {
                 up.labels.Add(label, up.exps.Count);
             }
@@ -603,7 +615,7 @@ namespace Verse
                 {
                     buildLine(up);
                     t = up.tokens.Peek();
-                } while (t.tokenType != TT.FullStop);
+                } while (t.tokenType != TT.FullStop && t.tokenType != TT.ExclamationMark);
                 
                 up.tokens.Dequeue();
 
@@ -628,7 +640,7 @@ namespace Verse
             {
                 buildLine(up);
                 t = up.tokens.Peek();
-            } while (t.tokenType != TT.FullStop);
+            } while (t.tokenType != TT.FullStop && t.tokenType != TT.ExclamationMark);
             up.tokens.Dequeue();
 
             up.labels.Add(endLabel, up.exps.Count);
@@ -703,6 +715,11 @@ namespace Verse
         private void error(String desc)
         {
             throw new Exception("Error on line " + lineNo + ". " + desc);
+        }
+
+        private void warning(String desc)
+        {
+            Console.WriteLine("Warning on line " + lineNo + ": " + desc);
         }
     }
 }

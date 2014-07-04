@@ -20,8 +20,8 @@ namespace Verse
             Parse parser = new Parse(lexer);
 
             //TODO: compiler flag for this
-            printC(parser);
-            //interpret(parser);
+            //printC(parser);
+            interpret(parser);
 
             Console.ReadKey();
         }
@@ -31,8 +31,11 @@ namespace Verse
             
             Anthology anth = parser.compile();
 
+            //TODO parse args?
             Variable v = anth.run(null);
             if (v != null) Console.WriteLine(v.asString());
+
+            Console.WriteLine("end.");
         }
 
         static void printC(Parse parser)
