@@ -10,11 +10,12 @@ namespace Verse
 
     enum types : byte
     {
-        type_list = 0,
-        type_bool = 1,
-        type_string = 2,
-        type_float = 3,
-        type_int = 4,
+        type_function = 0,
+        type_list = 1,
+        type_bool = 2,
+        type_string = 3,
+        type_float = 4,
+        type_int = 5,
     };
 
     [StructLayout(LayoutKind.Explicit)] 
@@ -38,6 +39,11 @@ namespace Verse
         {
             get {return (ListNode)refV;}
             set { refV = value;}
+        }
+        public Poem pmV
+        {
+            get {return (Poem)refV;}
+            set { refV = value; }
         }
     }
 
@@ -87,6 +93,12 @@ namespace Verse
             type = types.type_bool;
         }
 
+        public Variable(Poem p)
+        {
+            value.pmV = p;
+            type = types.type_function;
+        }
+
         public Variable(ListNode nd)
         {
             value.ndV = nd;
@@ -105,6 +117,11 @@ namespace Verse
             this.type = v.type;
         }
 
+        public Poem getPoem()
+        {
+            if (this.type != types.type_function) throw new Exception("Cannot call a type " + this.type);
+            return this.value.pmV;
+        }
         public static Variable nodeOf(Variable v)
         {
             Variable newv = new Variable();
@@ -206,6 +223,9 @@ namespace Verse
 
         public static bool equal(Variable v1, Variable v2)
         {
+            if (v1.type == types.type_function && v2.type == types.type_function) return v1.value.pmV == v2.value.pmV;
+            else if (v1.type == types.type_function || v2.type == types.type_function) throw new Exception("Variable typing exception");
+
             if(v2.type < v1.type) { Variable tmp = v1; v1 = v2; v2 = tmp;}
 
             switch (v1.type)
@@ -240,12 +260,15 @@ namespace Verse
                 case types.type_int: return value.intV.ToString();
                 case types.type_string: return value.strV;
                 case types.type_list: return listAsString(value.ndV);
+                case types.type_function: return value.pmV.sig.ID;
                 default: throw new Exception("Variable typing exception");
             }
         }
 
         public static Variable add(Variable a, Variable b)
         {
+            if (a.type == types.type_function || a.type == types.type_function) throw new Exception("Variable typing exception");
+
             if (a.type == types.type_list || b.type == types.type_list)
             {
                 if (b.type == types.type_list)
@@ -273,7 +296,7 @@ namespace Verse
             if (a.type == types.type_int && b.type == types.type_int) return new Variable(a.value.intV - b.value.intV);
             else if (a.type == types.type_int && b.type == types.type_float) return new Variable(a.value.intV - b.value.floatV);
             else if (a.type == types.type_float && b.type == types.type_int) return new Variable(a.value.floatV - b.value.intV);
-            else throw new Exception("Cannot substract strings or bools");
+            else throw new Exception("Cannot substract strings or bools or functions");
         }
 
         public static Variable multiply(Variable a, Variable b)
@@ -281,7 +304,7 @@ namespace Verse
             if (a.type == types.type_int && b.type == types.type_int) return new Variable(a.value.intV * b.value.intV);
             else if (a.type == types.type_int && b.type == types.type_float) return new Variable(a.value.intV * b.value.floatV);
             else if (a.type == types.type_float && b.type == types.type_int) return new Variable(a.value.floatV * b.value.intV);
-            else throw new Exception("Cannot multiply strings or bools");
+            else throw new Exception("Cannot multiply strings or bools or functions");
         }
 
         public static Variable divide(Variable a, Variable b)
@@ -289,7 +312,7 @@ namespace Verse
             if (a.type == types.type_int && b.type == types.type_int) return new Variable(a.value.intV / b.value.intV);
             else if (a.type == types.type_int && b.type == types.type_float) return new Variable(a.value.intV / b.value.floatV);
             else if (a.type == types.type_float && b.type == types.type_int) return new Variable(a.value.floatV / b.value.intV);
-            else throw new Exception("Cannot divide strings or bools");
+            else throw new Exception("Cannot divide strings or bools or functions");
         }
 
         public static Variable mod(Variable a, Variable b)
@@ -297,7 +320,7 @@ namespace Verse
             if (a.type == types.type_int && b.type == types.type_int) return new Variable(a.value.intV % b.value.intV);
             else if (a.type == types.type_int && b.type == types.type_float) return new Variable(a.value.intV % b.value.floatV);
             else if (a.type == types.type_float && b.type == types.type_int) return new Variable(a.value.floatV % b.value.intV);
-            else throw new Exception("Cannot mod strings or bools");
+            else throw new Exception("Cannot mod strings or bools or functions");
         }
 
         public static Variable and(Variable a, Variable b)

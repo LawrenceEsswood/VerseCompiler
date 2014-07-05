@@ -58,49 +58,97 @@ namespace Verse
     class DeclareExp : ParsedExp
     {
         String id;
-        String val;
+
+        Object val;
+
+        bool isAssume;
+
         public DeclareExp(String id, String val)
         {
             this.id = id;
             this.val = val;
+            isAssume = true;
+        }
+
+        public DeclareExp(String id, signiture functionName)
+        {
+            this.id = id;
+            this.val = functionName;
+            isAssume = false;
         }
 
         public override Action finalise(Parse parser, uncompiledPoem up)
         {
-            return new Declare(parser.resolveID(id, up),val);
+            if (isAssume)
+            {
+                return new Declare(parser.resolveID(id, up), (String)val);
+            }
+            else
+            {
+                return new Declare(parser.resolveID(id, up), parser.resolveSig((signiture)val));
+            }
         }
 
         public override string finaliseC(Parse parser, uncompiledPoem up, signiture poemSig)
         {
-            return "var* " + id + " = " + (val == null ? "emptyVar();" : "assumeVar(\"" + val + "\");");
+            if (isAssume)
+            {
+                return "var* " + id + " = " + (val == null ? "emptyVar();" : "assumeVar(\"" + val + "\");");
+            }
+            else
+            {
+                return "exit(1); // currently first order functions are unsupported in C";
+            }
         }
     }
 
     class CallExp : ParsedExp
     {
-        signiture poem;
+        Object poem;
+
         String[] toCopy;
         String ri;
+
+        bool isDirect;
+
         public CallExp(signiture p, String[] copyIDs, String returnID)
         {
             this.poem = p;
             this.toCopy = copyIDs;
             this.ri = returnID;
+            isDirect = true;
+        }
+
+        public CallExp(String p, String[] copyIDs, String returnID)
+        {
+            this.poem = p;
+            this.toCopy = copyIDs;
+            this.ri = returnID;
+            isDirect = false;
         }
 
         public override Action finalise(Parse parser, uncompiledPoem up)
         {
             int[] cop = (toCopy.Length == 0) ? null : new int[toCopy.Length];
             for(int i = 0; i < toCopy.Length ; i++) cop[i] = parser.resolveID(toCopy[i], up);
-            return new Call(parser.resolveSig(poem),cop,parser.resolveID(ri, up));
+
+            if (isDirect)
+            {
+                return new Call(parser.resolveSig((signiture)poem), cop, parser.resolveID(ri, up));
+            }
+            else return new Call(parser.resolveID((String)poem, up), cop, parser.resolveID(ri, up));
         }
 
         public override string finaliseC(Parse parser, uncompiledPoem up, signiture poemSig)
         {
-            String args = "";
-            for (int i = 0; i < toCopy.Length; i++)
-                args += (poem.copy[i] ? "varCopy(" + toCopy[i] + ")" : toCopy[i]) + (i == toCopy.Length - 1 ? "" : ", ");
-            return (ri != null ? ri + " = " : "") + poem.ID + "(" + args + ");";
+            if (isDirect)
+            {
+                String args = "";
+                for (int i = 0; i < toCopy.Length; i++)
+                    args += (((signiture)poem).copy[i] ? "varCopy(" + toCopy[i] + ")" : toCopy[i]) + (i == toCopy.Length - 1 ? "" : ", ");
+                return (ri != null ? ri + " = " : "") + ((signiture)poem).ID + "(" + args + ");";
+            }
+            else return "exit(1); // calling variables unsupported in C";
         }
     }
 
@@ -380,13 +428,50 @@ namespace Verse
             return s;
         }
 
-        public int resolveLiteral(uncompiledPoem up,String id)
+        public String makeFunc(String id)
         {
+            return "_F" + id;
+        }
+
+        public String makeLit(String id)
+        {
+            return "_C" + id;
+        }
+
+        public String makeCorrect(String id, bool option)
+        {
+            return option ? makeFunc(id) : makeLit(id);
+        }
+
+        public bool isConst(String id)
+        {
+            return id.First() == '_';
+        }
+
+        public bool isLit(String id)
+        {
+            return id[1] == 'C';
+        }
+
+        public bool isFunc(String id)
+        {
+            return !isLit(id);
+        }
+
+        public String extractConst(String id)
+        {
+            return id.Remove(0, 2);
+        }
+
+        public int resolveConst(uncompiledPoem up,String id)
+        {
+            if (!isConst(id)) error(id + " not const.");
+
             bool needAssign = !up.variableTable.Keys.Contains(id);
             int index = resolveID(id, up);
             if (needAssign)
             {
-                up.exps.Add(new DeclareExp(id, id.Remove(0, 1)));
+                up.exps.Add(isFunc(id) ? new DeclareExp(id, functionTable[extractConst(id)]) : new DeclareExp(id, extractConst(id)));
             }
             return index;
         }
@@ -433,13 +518,18 @@ namespace Verse
                 up.tokens.Dequeue();
                 if(t.tokenType == TT.Literal)
                 {
-                    lrv.right = "_" + t.wordV;
+                    lrv.right = makeCorrect(t.wordV,t.singleQ);
                     lastWord = null;
                     continue;
                 }
                 if (!Word.wordExists(t.wordV)) error("Word '" + t.wordV + "' cannot be found in dictionary");
                 Word cword = new Word(t.wordV);
-                if (functionTable.Keys.Contains(t.wordV))
+                if (t.wordV == "CALL")
+                {
+                    lastWord = cword;
+                    lrv.right = buildFOFunction(up);
+                }
+                else if (functionTable.Keys.Contains(t.wordV))
                 {
                     lastWord = cword;
                     lrv.right = buildFunction(up, t.wordV);
@@ -492,6 +582,86 @@ namespace Verse
             else if (t.tokenType == TT.Colon) buildWhile(up, lrv.right);
         }
 
+        private String buildFOFunction(uncompiledPoem up)
+        {
+            Token t;
+
+            String toCallID;
+
+            while (true)
+            {
+                t = up.tokens.Dequeue();
+
+                if (t.tokenType != TT.Word && t.tokenType != TT.Literal) error("Call requires at least one argument.");
+
+                if (t.tokenType == TT.Word)
+                {
+                    lastWord = new Word(t.wordV);
+                    if (t.wordV == "CALL")
+                    {
+                        toCallID = buildFOFunction(up);
+                    }
+                    else if (up.variableTable.Keys.Contains(t.wordV))
+                    {
+                        toCallID = t.wordV;
+                        break;
+                    }
+                    else if (functionTable.ContainsKey(t.wordV))
+                    {
+                        toCallID = buildFunction(up, t.wordV);
+                        break;
+                    }
+                    else continue;
+                }
+                else
+                {
+                    lastWord = null;
+                    if (!t.singleQ) error("Call can only be supplied with a single qoute constant.");
+                    resolveConst(up, makeCorrect(t.wordV, t.singleQ));
+                    toCallID = makeCorrect(t.wordV, t.singleQ);
+                    break;
+                }
+            }
+
+            List<String> indexs = new List<string>();
+
+            while ((t = up.tokens.Peek()).tokenType == TT.Word || t.tokenType == TT.Literal)
+            {
+                t = up.tokens.Dequeue();
+
+                if (t.tokenType == TT.Word)
+                {
+                    lastWord = new Word(t.wordV);
+
+                    if (t.wordV == "CALL")
+                    {
+                        indexs.Add(buildFOFunction(up));
+                    }
+                    else if (functionTable.Keys.Contains(t.wordV))
+                    {
+                        indexs.Add(buildFunction(up, t.wordV));
+                    }
+                    else if (up.variableTable.Keys.Contains(t.wordV))
+                    {
+                        indexs.Add(t.wordV);
+                    }
+                    else continue;
+                    
+                }
+                else
+                {
+                    resolveConst(up, makeCorrect(t.wordV, t.singleQ));
+                    indexs.Add(makeCorrect(t.wordV, t.singleQ));
+                    lastWord = null;
+                }
+            }
+
+            String returnTmp = createTmp(up);
+            up.exps.Add(new CallExp(toCallID, indexs.ToArray(), returnTmp));
+            return returnTmp;
+
+        }
+
         private String buildFunction(uncompiledPoem up, String functionName)
         {
 
@@ -523,8 +693,8 @@ namespace Verse
                 }
                 else if (t.tokenType == TT.Literal)
                 {
-                    resolveLiteral(up, "_" + t.wordV);
-                    indexs[index++] = "_" + t.wordV;
+                    resolveConst(up, makeCorrect(t.wordV,t.singleQ));
+                    indexs[index++] = makeCorrect(t.wordV,t.singleQ);
                     lastWord = null;
                 }
                 else error("Was expecting more arguments after " + functionName + " call.");
@@ -553,10 +723,12 @@ namespace Verse
             }
 
             String init = null;
+            bool needSig = false;
             if ((t = up.tokens.Peek()).tokenType == TT.Literal)
             {
                 lastWord = null;
                 init = t.wordV;
+                needSig = t.singleQ;
                 up.tokens.Dequeue();
             }
 
@@ -567,7 +739,7 @@ namespace Verse
                 variableName = w.ToString();
                 if (up.variableTable.Keys.Contains(variableName)) error(variableName + " was already declared.");
                 resolveID(variableName, up);
-                up.exps.Add(new DeclareExp(variableName, init));
+                up.exps.Add(needSig ? new DeclareExp(variableName, functionTable[init]) : new DeclareExp(variableName, init));
             }
 
             return new LeftRightVal(variableName, init);
@@ -580,7 +752,7 @@ namespace Verse
                 warning("Null assignment attempted. Did you mean this to rhyme?");
                 return;
             }
-            if (right.First() == '_') resolveLiteral(up, right);
+            if (isConst(right)) resolveConst(up, right);
             up.exps.Add(new AssignExp(left, right));
         }
 
@@ -591,7 +763,7 @@ namespace Verse
 
         private void buildIF(uncompiledPoem up, String rv)
         {
-            if (rv.First() == '_') resolveLiteral(up, rv);
+            if (isConst(rv)) resolveConst(up, rv);
             String label = newLabel();
             up.exps.Add(new BranchIfExp(rv, label, true));
             Token t;
@@ -629,7 +801,7 @@ namespace Verse
 
         private void buildWhile(uncompiledPoem up, String rv)
         {
-            if (rv.First() == '_') resolveLiteral(up, rv);
+            if (isConst(rv)) resolveConst(up, rv);
             List<ParsedExp> whileBody = up.exps.GetRange(lineStartActionLabel, up.exps.Count - lineStartActionLabel);
             up.exps.RemoveRange(lineStartActionLabel, up.exps.Count - lineStartActionLabel);
 

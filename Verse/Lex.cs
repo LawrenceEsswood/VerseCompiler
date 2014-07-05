@@ -36,19 +36,30 @@ namespace Verse
 
         public TT tokenType;
         public String wordV;
-        public bool captilised;
+
+        public bool option;
+
+        public bool captilised{ get{ return option;}}
+        public bool singleQ{ get {return option;}}
 
         public Token(TT tt)
         {
             tokenType = tt;
             wordV = null;
-            captilised = false;
+            option = false;
         }
 
         public Token(TT tt, String w, bool upper)
         {
             tokenType = tt;
-            captilised = Char.IsUpper(w[0]);
+            option = (tt == TT.Word) && Char.IsUpper(w[0]);
+            wordV = upper ? w.ToUpper() : w;
+        }
+
+        public Token(TT tt, String w, bool upper, bool option)
+        {
+            tokenType = tt;
+            this.option = option;
             wordV = upper ? w.ToUpper() : w;
         }
     }
@@ -99,6 +110,15 @@ namespace Verse
                 
                 switch (x)
                 {
+                    case '\'':
+                        if (v != "" || workingOnNumber) addWordToQueue(v);
+                        if (workingOnNumber) addWordToQueue("");
+                        String vv = "";
+                        char cc;
+                        while ((cc = getChar()) != '\'') vv += cc;
+                        hold.Enqueue(new Token(TT.Literal, vv, true, true));
+
+                        return;
                     case '"':
                         if (v != "" || workingOnNumber) addWordToQueue(v);
                         if (workingOnNumber) addWordToQueue("");
@@ -292,7 +312,7 @@ namespace Verse
         {
             switch (s)
             {
-                case "ZER0": return 0;
+                case "ZERO": return 0;
                 case "ONE": return 1;
                 case "TWO": return 2;
                 case "THREE": return 3;

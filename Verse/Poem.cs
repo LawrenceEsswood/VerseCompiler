@@ -13,10 +13,12 @@ namespace Verse
     class Declare : Action
     {
         int index;
-        String v;
+        Object v;
+        bool isAssume;
+
         public override int run(Variable[] localStack, int line)
         {
-            Variable var = (v != null) ? Variable.assumeType(v) : new Variable();
+            Variable var = (v != null) ? (isAssume ? Variable.assumeType((String)v) : new Variable((Poem)v)) : new Variable();
             localStack[index] = var;
             return line + 1;
         }
@@ -25,6 +27,14 @@ namespace Verse
         {
             this.index = index;
             this.v = intialValue;
+            isAssume = true;
+        }
+
+        public Declare(int index, Poem p)
+        {
+            this.index = index;
+            this.v = p;
+            isAssume = false;
         }
     }
 
@@ -48,12 +58,18 @@ namespace Verse
 
     class Call : Action
     {
-        Poem toCall;
+        private Poem toCall;
+        private int varToCall;
+
+        bool callDirect = true;
+
         int[] indexs;
         int rI;
 
         public override int run(Variable[] localStack, int line)
         {
+            Poem toCall = (callDirect) ? this.toCall : localStack[varToCall].getPoem();
+
             Variable[] newLocal = new Variable[toCall.nVars];
             if (indexs != null)
             {
@@ -81,6 +97,15 @@ namespace Verse
             this.toCall = call;
             this.indexs = copyVars;
             this.rI = returnIndex;
+            callDirect = true;
+        }
+
+        public Call(int call, int[] copyVars, int returnIndex)
+        {
+            this.varToCall = call;
+            this.indexs = copyVars;
+            this.rI = returnIndex;
+            callDirect = false;
         }
     
     }
