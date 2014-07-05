@@ -457,7 +457,6 @@ namespace Verse
                         lrv.left = tmpLRV.left;
                         if (tmpLRV.right != null) lrv.right = tmpLRV.right;
                     }
-                    lastWord = cword;
                 }
 
             }
@@ -505,6 +504,7 @@ namespace Verse
                 
                 if (t.tokenType == TT.Word)
                 {
+                    lastWord = new Word(t.wordV);
                     if (functionTable.Keys.Contains(t.wordV))
                     {
                         indexs[index++] = buildFunction(up, t.wordV);
@@ -514,7 +514,6 @@ namespace Verse
                         if (up.variableTable.Keys.Contains(t.wordV))
                         {
                             indexs[index++] = t.wordV;
-                            lastWord = new Word(t.wordV);
                         }
                         else continue;
                     }
@@ -539,6 +538,7 @@ namespace Verse
             Queue<Word> toDeclare = new Queue<Word>();
             toDeclare.Enqueue(firstOccurence);
             Token t;
+            lastWord = firstOccurence;
             while ((t = up.tokens.Peek()).tokenType == TT.Word)
             {
                 Word cword = new Word(t.wordV);
