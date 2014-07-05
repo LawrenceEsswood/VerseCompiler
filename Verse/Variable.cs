@@ -10,12 +10,12 @@ namespace Verse
 
     enum types : byte
     {
-        type_function = 0,
         type_bool = 1,
         type_string = 2,
         type_float = 3,
         type_int = 4,
         type_list = 5,
+        type_function = 6,
     };
 
     [StructLayout(LayoutKind.Explicit)] 
@@ -191,7 +191,8 @@ namespace Verse
                 case types.type_int: return value.intV;
                 case types.type_list: return listLength(value.ndV);
                 case types.type_string: return value.strV.Length;
-                default: throw new Exception("Variable typing exception");
+                case types.type_function: return value.pmV.sig.arguments.Count;
+                default: throw new Exception("Variable typing exception (try not to compare floats to other things)");
             }
         }
 
@@ -213,7 +214,8 @@ namespace Verse
                 (type == types.type_bool && value.boolV) ||
                 (type == types.type_int && value.intV != 0) ||
                 (type == types.type_float && value.floatV != 0)
-                || (type == types.type_string && value.strV.Length != 0);
+                || (type == types.type_string && value.strV.Length != 0)
+                || (type == types.type_function && value.pmV.copyReturn);
         }
 
         public static bool equalLst(ListNode l1, ListNode l2)
@@ -223,19 +225,16 @@ namespace Verse
 
         public static bool equal(Variable v1, Variable v2)
         {
-            if (v1.type == types.type_function && v2.type == types.type_function) return v1.value.pmV == v2.value.pmV;
-            else if (v1.type == types.type_function || v2.type == types.type_function) throw new Exception("Variable typing exception");
-
             if(v2.type < v1.type) { Variable tmp = v1; v1 = v2; v2 = tmp;}
 
             switch (v1.type)
             {
                 case types.type_bool: return v2.test() == v1.value.boolV;
                 case types.type_string: return v2.asString() == v1.value.strV;
-                case types.type_float: return (v2.type == types.type_int && (float)v2.value.intV == v1.value.floatV) || (v2.type == types.type_list && listLength(v2.value.ndV) == v1.value.floatV) || (v2.type == types.type_float && v2.value.floatV == v1.value.floatV);
-                case types.type_int: return (v2.type == types.type_int && v2.value.intV == v1.value.intV) || (v2.type == types.type_list && listLength(v2.value.ndV) == v1.value.intV);
-                case types.type_list: return (equalLst(v1.value.ndV, v2.value.ndV));
-
+                case types.type_float: return (v2.type == types.type_float && v2.value.floatV == v1.value.floatV) || (v2.type != types.type_float && v1.compLength() == v2.value.floatV);
+                case types.type_int: return (v2.type == types.type_int && v2.value.intV == v1.value.intV) || (v2.type != types.type_int && v1.compLength() == v2.value.intV);
+                case types.type_list: return (v2.type == types.type_list && equalLst(v1.value.ndV, v2.value.ndV)) || (v2.compLength() == v1.compLength());
+                case types.type_function: return (v1.compLength() == v2.compLength());
                 default: throw new Exception("Variable typing exception");
             }
         }
