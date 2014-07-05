@@ -234,7 +234,7 @@ namespace Verse
                 case types.type_float: return (v2.type == types.type_float && v2.value.floatV == v1.value.floatV) || (v2.type != types.type_float && v1.compLength() == v2.value.floatV);
                 case types.type_int: return (v2.type == types.type_int && v2.value.intV == v1.value.intV) || (v2.type != types.type_int && v1.compLength() == v2.value.intV);
                 case types.type_list: return (v2.type == types.type_list && equalLst(v1.value.ndV, v2.value.ndV)) || (v2.compLength() == v1.compLength());
-                case types.type_function: return (v1.compLength() == v2.compLength());
+                case types.type_function: return (v1.value.pmV == v2.value.pmV);
                 default: throw new Exception("Variable typing exception");
             }
         }
