@@ -457,6 +457,9 @@ namespace Verse
                         lrv.left = tmpLRV.left;
                         if (tmpLRV.right != null) lrv.right = tmpLRV.right;
                     }
+                    else lastWord = cword;
+
+                    
                 }
 
             }
