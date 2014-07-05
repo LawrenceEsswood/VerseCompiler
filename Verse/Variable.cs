@@ -11,11 +11,11 @@ namespace Verse
     enum types : byte
     {
         type_function = 0,
-        type_list = 1,
-        type_bool = 2,
-        type_string = 3,
-        type_float = 4,
-        type_int = 5,
+        type_bool = 1,
+        type_string = 2,
+        type_float = 3,
+        type_int = 4,
+        type_list = 5,
     };
 
     [StructLayout(LayoutKind.Explicit)] 
@@ -230,11 +230,12 @@ namespace Verse
 
             switch (v1.type)
             {
-                case types.type_list: return (v2.type == types.type_list && equalLst(v1.value.ndV, v2.value.ndV));
                 case types.type_bool: return v2.test() == v1.value.boolV;
                 case types.type_string: return v2.asString() == v1.value.strV;
-                case types.type_float: return (v2.type == types.type_int && (float)v2.value.intV == v1.value.floatV) || (v2.value.floatV == v1.value.floatV);
-                case types.type_int: return (v2.value.intV == v1.value.intV);
+                case types.type_float: return (v2.type == types.type_int && (float)v2.value.intV == v1.value.floatV) || (v2.type == types.type_list && listLength(v2.value.ndV) == v1.value.floatV) || (v2.type == types.type_float && v2.value.floatV == v1.value.floatV);
+                case types.type_int: return (v2.type == types.type_int && v2.value.intV == v1.value.intV) || (v2.type == types.type_list && listLength(v2.value.ndV) == v1.value.intV);
+                case types.type_list: return (equalLst(v1.value.ndV, v2.value.ndV));
+
                 default: throw new Exception("Variable typing exception");
             }
         }
