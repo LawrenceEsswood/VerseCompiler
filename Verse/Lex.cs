@@ -143,7 +143,7 @@ namespace Verse
                         hold.Enqueue(Token.ExclamationMark);
                         return;
                     case ' ':case ',':
-                        if (v != "" || workingOnNumber)
+                        if (v != "")
                         {
                             addWordToQueue(v);
                             return;
