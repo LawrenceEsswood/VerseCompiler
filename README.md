@@ -33,7 +33,7 @@ To declare a variable you must use alliteration. Two words alliterate of their f
 Literals
 --------
 
-Literals are surround with double qoutes. They will be treated as the most specific type possible (bool before int before float before string). `TRUE` and `FALSE` (any case) are booleans. You may type `"true"` or `"false"` without quotes and they will still be literals.
+Literals are surround with double qoutes. They will be treated as the most specific type possible (bool before int before float before string). `TRUE` and `FALSE` (any case) are booleans. You may type `"true"` or `"false"` or any number without quotes and they will still be literals. Furthermore strings such as `one hundred and fifty` are treated as the literal 150.
 
 Assignment
 ----------
@@ -47,12 +47,12 @@ A boolean is true if it is true.
 An int or float are true if not 0.
 A string is true if it is not the empty string.
 A list is true if is not empty.
-
+functions are true if they are pass by value.
 
 Size
 ----
 
-The size of a numeric type is itself. The size of a string or list is its length.
+The size of a numeric type is itself. The size of a string or list is its length. A poems size is the number of its arguments.
 
 If
 ----
@@ -87,6 +87,13 @@ Calling Poems
 
 If you mention the name of a poem in a line, it will be called. The words following the name are treated as arguments (they may also be function calls themselves).
 
+First Order Call
+----------------
+
+You can get the value of a poem, instead of calling it, using single qoutes. It can then be assigned, passed, or returned like any other value.
+
+If you wish to call the function, use the call keyword. Call will consume as many arguments as it can, and will assume the first is what should be called, using the rest as arguments. If the number of arguments do not match the behaviour is undefined. For example: `call 'add' five six` means the same as `add five six`.
+
 Short words
 -----------
 
@@ -106,6 +113,12 @@ Will print out Word.
 Aliases: `Read`
 
 Will read in and return a line from the command line.
+
+`Same Eggs Ham`
+
+Aliases: `Same`
+
+Gives Eggs == Ham. An ordering is imposed on the variable types (bool < str < float < int < list < function). The larger variable is cast up to the lower one in order to compare. To cast to to bool use the truth value, to string the same thing as 'Say' would give, float and int use comparative lengths. Functions are the same if they are the same function. Lists are the same if all elements are the same. Lists are functions are compared using comparitive length.
 
 `Add Eggs Ham`
 
@@ -159,7 +172,7 @@ Will perform Eggs xor Ham and return the result. Logic if bools, bitwise if ints
 
 Aliases: `Not`
 
-Will perform not Eggsand return the result. Logic if bools, bitwise if ints.
+Will perform not Eggs and return the result. Logic if bools, bitwise if ints.
 
 `First List`
 
