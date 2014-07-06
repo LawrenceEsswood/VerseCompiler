@@ -678,7 +678,12 @@ namespace Verse
                 if (t.tokenType == TT.Word)
                 {
                     lastWord = new Word(t.wordV);
-                    if (functionTable.Keys.Contains(t.wordV))
+
+                    if (t.wordV == "CALL")
+                    {
+                        indexs[index++] = buildFOFunction(up);
+                    }
+                    else if (functionTable.Keys.Contains(t.wordV))
                     {
                         indexs[index++] = buildFunction(up, t.wordV);
                     }
